@@ -1053,8 +1053,8 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "litellm", specifier = ">=1.105.7" },
-    { name = "opik", specifier = ">=2.2.143" },
+    { name = "litellm", specifier = "==1.105.7" },
+    { name = "opik", specifier = "==2.2.143" },
     { name = "python-dotenv", specifier = ">=1.2.4" },
     { name = "pyyaml", specifier = ">=6.0.3" },
 ]
