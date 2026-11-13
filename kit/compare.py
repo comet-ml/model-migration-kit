@@ -224,15 +224,29 @@ def print_summary(summary: dict, path: Path) -> None:
     print(f"  report: {path.resolve()}")
 
 
+def load_cases(cases_path: str | None, dataset_name: str | None, system: str | None = None) -> list[dict]:
+    """Cases from a file, or else from an existing Opik dataset. Exits with a clear message otherwise."""
+    if cases_path:
+        return capture.load_file(cases_path, system)
+    if not dataset_name:
+        sys.exit("Give --cases <file>, or --dataset <name> to read an existing Opik dataset "
+                 "(for example one written by: python -m kit.capture --from-opik-project <project> --dataset <name>).")
+    cases = capture.from_opik_dataset(dataset_name, PROJECT, system)
+    if not cases:
+        sys.exit(f"Opik dataset '{dataset_name}' has no usable items (each needs an 'input').")
+    return cases
+
+
 def main(argv=None) -> None:
     load_dotenv()
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--cases", required=True, help=".jsonl or .csv of requests")
+    parser.add_argument("--cases", help=".jsonl or .csv of requests (or use --dataset alone)")
     parser.add_argument("--system", help="file with the system prompt for every case")
     parser.add_argument("--old", required=True, help="LiteLLM name of the model you run today")
     parser.add_argument("--new", required=True, help="LiteLLM name of the replacement")
     parser.add_argument("--judge", default=DEFAULT_JUDGE, help=f"LiteLLM name of the judge (default {DEFAULT_JUDGE})")
-    parser.add_argument("--dataset", default="model-migration-cases", help="Opik dataset name")
+    parser.add_argument("--dataset", help="Opik dataset: with --cases it's written to, without it it's read "
+                        "(e.g. one kit.capture --from-opik-project made). Default with --cases: model-migration-cases")
     parser.add_argument("--limit", type=int, help="only the first N cases")
     parser.add_argument("--params", default="{}",
                         help='JSON of the request parameters your app sends, e.g. \'{"temperature": 0.2}\'')
@@ -241,11 +255,12 @@ def main(argv=None) -> None:
     if missing:
         sys.exit("Missing keys: " + ", ".join(missing) + ". Copy .env.example to .env and fill it in.")
     system = Path(args.system).read_text() if args.system else None
-    cases = capture.load_file(args.cases, system)[: args.limit]
+    cases = load_cases(args.cases, args.dataset, system)[: args.limit]
     params = json.loads(args.params)
     for issue in params_lint.lint(args.new, params):
         print(f"{issue.effect.upper()} on {args.new}: {issue.param}: {issue.why} ({issue.source})")
-    summary, path = run_comparison(cases, args.old, args.new, args.dataset, args.judge, params=params)
+    dataset_name = args.dataset or "model-migration-cases"
+    summary, path = run_comparison(cases, args.old, args.new, dataset_name, args.judge, params=params)
     print_summary(summary, path)
 
 

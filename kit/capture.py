@@ -105,6 +105,20 @@ def from_opik_project(project_name: str, last: int = 100) -> list[dict]:
     return cases
 
 
+def from_opik_dataset(dataset_name: str, project_name: str | None = None, system: str | None = None) -> list[dict]:
+    """Read the cases back from an existing Opik dataset (the shape to_dataset writes).
+
+    Returns [] when the dataset is empty or has no usable items.
+    """
+    client = opik.Opik()
+    try:
+        dataset = client.get_dataset(dataset_name, project_name=project_name)
+    except Exception as error:  # noqa: BLE001 (the SDK raises its own not-found error)
+        raise SystemExit(f"Opik dataset '{dataset_name}' not found: {error}") from error
+    items = [item for item in dataset.get_items() if str(item.get("input") or "").strip()]
+    return [normalize({key: item.get(key) for key in FIELDS}, index, system) for index, item in enumerate(items)]
+
+
 def to_dataset(cases: list[dict], dataset_name: str, project_name: str | None = None) -> tuple[opik.Dataset, list[str]]:
     """Insert cases into an Opik dataset; return it and the item IDs for exactly these cases.
 

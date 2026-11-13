@@ -79,6 +79,13 @@ It sends 10 sample support requests to `gemini-2.5-flash` (retiring) and `gemini
      --params '{"temperature": 0.2, "max_tokens": 1024}'
    ```
 
+   Already logging to Opik? Skip the file and compare straight from the dataset `kit.capture` wrote in step 2:
+
+   ```bash
+   uv run python -m kit.compare --dataset my-app-migration \
+     --old gemini/gemini-2.5-flash --new gemini/gemini-3.5-flash-lite --limit 100
+   ```
+
    Run it once with the same model on both sides (`--old X --new X`) to see how much the answers move on their own.
 
    Model names are [LiteLLM](https://docs.litellm.ai/docs/providers) names, so `openai/gpt-5` and `anthropic/claude-sonnet-4-5-20250929` work the same way.
