@@ -1,6 +1,10 @@
 [project]
 name = "model-migration-kit"
 version = "0.1.0"
+description = "Re-test your LLM app before its model retires: old vs new model on your real requests, as two Opik experiments and a one-page report of what changed meaning."
+readme = "README.md"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
 requires-python = ">=3.12"
 dependencies = [
     "litellm==1.105.7",
@@ -8,6 +12,11 @@ dependencies = [
     "python-dotenv>=1.2.4",
     "pyyaml>=6.0.3",
 ]
+
+[project.urls]
+Homepage = "https://github.com/comet-ml/model-migration-kit"
+Issues = "https://github.com/comet-ml/model-migration-kit/issues"
+Opik = "https://github.com/comet-ml/opik"
 
 [dependency-groups]
 dev = [

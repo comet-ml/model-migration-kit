@@ -1,0 +1,26 @@
+name: A date is wrong
+description: A retirement date, replacement or "what happens" in the tables is wrong or out of date.
+title: "date: <model> on <provider>"
+labels: [dates]
+body:
+  - type: input
+    id: model
+    attributes:
+      label: Model and provider
+      placeholder: gpt-4o (2024-05-13) on Azure OpenAI
+    validations:
+      required: true
+  - type: textarea
+    id: correct
+    attributes:
+      label: What it should say
+      description: The date, replacement or behavior, as the provider states it.
+    validations:
+      required: true
+  - type: input
+    id: source
+    attributes:
+      label: Source
+      description: A link to the provider's page that says so.
+    validations:
+      required: true

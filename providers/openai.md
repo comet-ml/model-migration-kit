@@ -2,15 +2,26 @@
 
 **What happens:** shutoff. Requests to these models fail after the date. Source: [OpenAI deprecations](https://developers.openai.com/api/docs/deprecations) (checked 2026-11-13).
 
-| Model | Shutdown | Replacement |
-|---|---|---|
-| `gpt-5`, `o3` | Dec 11, 2026 | `gpt-6.1-sol` |
-| `gpt-5-pro`, `o3-pro` | Dec 11, 2026 | `gpt-6.1-sol` with `reasoning.mode: pro` (Responses API) |
-| `gpt-5-mini` | Dec 11, 2026 | `gpt-6.1-terra` |
-| `gpt-5-nano` | Dec 11, 2026 | `gpt-6-luna` |
-| `gpt-4o-2024-08-06`, `gpt-4o-2024-11-20`, `gpt-4o-mini-2024-07-18`, `gpt-4.1-2025-04-14`, `gpt-4.1-mini-2025-04-14` | Jan 14, 2027 | `gpt-6-luna` |
+<!-- retirements:start -->
+| Model | Provider | Date | What happens | Replacement | Source (checked) |
+|---|---|---|---|---|---|
+| `o-series` | azure-openai | Nov 19, 2026 | requests fail | `gpt-5.6-sol / gpt-5.6-terra` | [link](https://learn.microsoft.com/en-us/azure/foundry/openai/concepts/model-retirement-schedule) (2026-11-13) |
+| `gpt-5` | openai | Dec 11, 2026 | requests fail | `gpt-6.1-sol` | [link](https://developers.openai.com/api/docs/deprecations) (2026-11-13) |
+| `gpt-5-pro` | openai | Dec 11, 2026 | requests fail | `gpt-6.1-sol (reasoning.mode: pro, Responses API)` | [link](https://developers.openai.com/api/docs/deprecations) (2026-11-13) |
+| `gpt-5-mini` | openai | Dec 11, 2026 | requests fail | `gpt-6.1-terra` | [link](https://developers.openai.com/api/docs/deprecations) (2026-11-13) |
+| `gpt-5-nano` | openai | Dec 11, 2026 | requests fail | `gpt-6-luna` | [link](https://developers.openai.com/api/docs/deprecations) (2026-11-13) |
+| `o3` | openai | Dec 11, 2026 | requests fail | `gpt-6.1-sol` | [link](https://developers.openai.com/api/docs/deprecations) (2026-11-13) |
+| `o3-pro` | openai | Dec 11, 2026 | requests fail | `gpt-6.1-sol (reasoning.mode: pro, Responses API)` | [link](https://developers.openai.com/api/docs/deprecations) (2026-11-13) |
+| `gpt-4o-2024-08-06` | openai | Jan 14, 2027 | requests fail | `gpt-6-luna` | [link](https://developers.openai.com/api/docs/deprecations) (2026-11-13) |
+| `gpt-4o-2024-11-20` | openai | Jan 14, 2027 | requests fail | `gpt-6-luna` | [link](https://developers.openai.com/api/docs/deprecations) (2026-11-13) |
+| `gpt-4o-mini-2024-07-18` | openai | Jan 14, 2027 | requests fail | `gpt-6-luna` | [link](https://developers.openai.com/api/docs/deprecations) (2026-11-13) |
+| `gpt-4.1-2025-04-14` | openai | Jan 14, 2027 | requests fail | `gpt-6-luna` | [link](https://developers.openai.com/api/docs/deprecations) (2026-11-13) |
+| `gpt-4.1-mini-2025-04-14` | openai | Jan 14, 2027 | requests fail | `gpt-6-luna` | [link](https://developers.openai.com/api/docs/deprecations) (2026-11-13) |
+| `gpt-4o (2024-05-13)` | azure-openai | Jan 14, 2027 | Global Standard and Data Zone Standard deployments auto-upgrade to gpt-5.1; Provisioned deployments and ones set to NoAutoUpgrade stop working | `gpt-5.1` | [link](https://learn.microsoft.com/en-us/azure/foundry/openai/concepts/model-retirement-schedule) (2026-11-13) |
+| `gpt-4o (2024-08-06, 2024-11-20)` | azure-openai | Apr 14, 2027 | requests fail | `gpt-5.1` | [link](https://learn.microsoft.com/en-us/azure/foundry/openai/concepts/model-retirement-schedule) (2026-11-13) |
+<!-- retirements:end -->
 
-Azure OpenAI runs on its own dates: the o-series retires Nov 19, 2026 (replacements `gpt-5.6-sol` / `gpt-5.6-terra`), `gpt-4o` 2024-05-13 on Jan 14, 2027, and `gpt-4o` 2024-08-06 and 2024-11-20 on Apr 14, 2027 ([Azure model retirements](https://learn.microsoft.com/en-us/azure/ai-foundry/openai/concepts/model-retirements)).
+Azure OpenAI runs on its own dates (rows above marked azure-openai). One `gpt-4o` version depends on the deployment: Global Standard and Data Zone Standard deployments of 2024-05-13 auto-upgrade to `gpt-5.1`, which is a model change with no error, so compare before it happens. Compare an Azure deployment with `--old azure/<your-deployment>` (needs `AZURE_API_KEY`, `AZURE_API_BASE`, `AZURE_API_VERSION`).
 
 **What the replacement changes that matters** (from [OpenAI's latest-model guide](https://developers.openai.com/api/docs/guides/latest-model)):
 
@@ -24,11 +35,11 @@ Azure OpenAI runs on its own dates: the o-series retires Nov 19, 2026 (replaceme
 uv run python -m kit.params --model openai/gpt-6.1-sol --params '{"temperature": 0.2, "reasoning_effort": "none"}'
 ```
 
-**Compare before the date** (needs `OPENAI_API_KEY`; this path is tested with mocks only, not a live run):
+**Compare before the date** (needs `OPENAI_API_KEY`; the judge defaults to a model from a provider you have a key for, or pass `--judge`. This path is tested with mocks only, not a live run):
 
 ```bash
 uv run python -m kit.compare --cases your_requests.jsonl \
-  --old openai/gpt-5 --new openai/gpt-6.1-sol --judge gemini/gemini-3.8-flash
+  --old openai/gpt-5 --new openai/gpt-6.1-sol
 ```
 
 Calls that fail on the new model (a parameter it rejects, say) are recorded per case as "failed on new model", not a crash.

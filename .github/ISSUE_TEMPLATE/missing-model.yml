@@ -1,0 +1,27 @@
+name: My model is missing
+description: A model you run is retiring and isn't in the tables, or the kit can't call it.
+title: "model: <model> on <provider>"
+labels: [models]
+body:
+  - type: input
+    id: model
+    attributes:
+      label: Model, provider and platform
+      placeholder: claude-sonnet-4-5 on Vertex AI
+    validations:
+      required: true
+  - type: input
+    id: litellm
+    attributes:
+      label: The LiteLLM name you tried (if any)
+      placeholder: vertex_ai/claude-sonnet-4-5@20250929
+  - type: input
+    id: source
+    attributes:
+      label: Retirement source
+      description: The provider page with the date, if there is one.
+  - type: textarea
+    id: output
+    attributes:
+      label: What happened
+      description: The kit's message, with any keys removed.

@@ -1,6 +1,13 @@
 # Claude API: claude-sonnet-4-5, Nov 30, 2026
 
-**What happens:** shutoff. `claude-sonnet-4-5-20250929` retires on Nov 30, 2026, and requests to retired models fail. Replacement: `claude-sonnet-5-5`. Source: [Anthropic model deprecations](https://platform.claude.com/docs/en/about-claude/model-deprecations) (checked 2026-11-13). On Amazon Bedrock, Sonnet 4.5 reaches end of life on Apr 8, 2027 ([Bedrock model lifecycle](https://docs.aws.amazon.com/bedrock/latest/userguide/model-lifecycle.html)).
+**What happens:** shutoff. `claude-sonnet-4-5-20250929` retires on Nov 30, 2026, and requests to retired models fail. Replacement: `claude-sonnet-5-5`. Source: [Anthropic model deprecations](https://platform.claude.com/docs/en/about-claude/model-deprecations) (checked 2026-11-13). On Amazon Bedrock, Sonnet 4.5 went legacy on Oct 8, 2026 and reaches end of life on Apr 8, 2027; AWS lists no replacement and says migration won't happen automatically ([Bedrock legacy models](https://docs.aws.amazon.com/bedrock/latest/userguide/model-lifecycle-legacy.html)).
+
+<!-- retirements:start -->
+| Model | Provider | Date | What happens | Replacement | Source (checked) |
+|---|---|---|---|---|---|
+| `claude-sonnet-4-5-20250929` | anthropic | Nov 30, 2026 | requests fail | `claude-sonnet-5-5` | [link](https://platform.claude.com/docs/en/about-claude/model-deprecations) (2026-11-13) |
+| `claude-sonnet-4-5 (Bedrock)` | bedrock | Apr 8, 2027 | requests fail | `not announced as of 2026-11-13` | [link](https://docs.aws.amazon.com/bedrock/latest/userguide/model-lifecycle-legacy.html) (2026-11-13) |
+<!-- retirements:end -->
 
 **What the replacement changes that matters** (from the [Sonnet 5.5 migration guide](https://platform.claude.com/docs/en/models/sonnet-5-5/migration-guide)). These return HTTP 400 on `claude-sonnet-5-5`:
 
@@ -19,10 +26,10 @@ uv run python -m kit.params --model anthropic/claude-sonnet-5-5 \
   --params '{"temperature": 0.2, "thinking": {"type": "enabled", "budget_tokens": 2048}}'
 ```
 
-**Compare before the date** (needs `ANTHROPIC_API_KEY`; this path is tested with mocks only, not a live run). Send the parameters your app sends today; any that the new model rejects show up as "failed on new model":
+**Compare before the date** (needs `ANTHROPIC_API_KEY`; the judge defaults to a model from a provider you have a key for, or pass `--judge`. This path is tested with mocks only, not a live run). Send the parameters your app sends today; any that the new model rejects show up as "failed on new model":
 
 ```bash
 uv run python -m kit.compare --cases your_requests.jsonl \
   --old anthropic/claude-sonnet-4-5-20250929 --new anthropic/claude-sonnet-5-5 \
-  --judge gemini/gemini-3.8-flash --params '{"max_tokens": 2048}'
+  --params '{"max_tokens": 2048}'
 ```

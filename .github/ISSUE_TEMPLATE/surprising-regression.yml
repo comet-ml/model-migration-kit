@@ -1,0 +1,31 @@
+name: Surprising regression
+description: The new model changed an answer in a way others should know about. Share a redacted, minimal case.
+title: "regression: <old model> -> <new model>: <one line>"
+labels: [findings]
+body:
+  - type: markdown
+    attributes:
+      value: Please remove customer data, names, keys and anything internal. A made-up request that shows the same change is ideal.
+  - type: input
+    id: models
+    attributes:
+      label: Old model -> new model, and the judge
+      placeholder: gemini/gemini-2.5-flash -> gemini/gemini-3.5-flash-lite, judge gemini/gemini-3.8-flash
+    validations:
+      required: true
+  - type: textarea
+    id: case
+    attributes:
+      label: Minimal case
+      description: The system prompt (shortened), the request, the old answer and the new answer.
+    validations:
+      required: true
+  - type: textarea
+    id: params
+    attributes:
+      label: Request parameters sent to both
+      placeholder: '{"temperature": 0.2, "max_tokens": 1024}'
+  - type: input
+    id: noise
+    attributes:
+      label: Does it repeat? (same model run twice, or --noise-floor)

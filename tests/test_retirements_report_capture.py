@@ -13,16 +13,24 @@ def test_retirements_load_and_are_sorted():
     rows = retirements.load()
     assert len(rows) >= 5
     assert [row["retires"] for row in rows] == sorted(row["retires"] for row in rows)
-    assert {row["kind"] for row in rows} <= {"shutoff", "reroute"}
+    assert {row["kind"] for row in rows} <= set(retirements.KINDS)
 
 
-def test_readme_table_matches_the_yaml():
-    readme = (ROOT / "README.md").read_text(encoding="utf-8")
-    block = re.search(r"<!-- retirements:start -->\n(.*?)\n<!-- retirements:end -->", readme, re.DOTALL)
-    assert block, "README.md needs the retirements markers"
-    assert block.group(1).strip() == retirements.markdown_table(retirements.load()).strip(), (
-        "README table is stale: run `uv run python -m kit.retirements` and paste it in"
-    )
+def test_tables_match_the_yaml(tmp_path):
+    for page in retirements.PAGES:
+        (tmp_path / page).parent.mkdir(parents=True, exist_ok=True)
+        (tmp_path / page).write_text((ROOT / page).read_text(encoding="utf-8"), encoding="utf-8")
+    stale = retirements.write_pages(retirements.load(), root=tmp_path)
+    assert not stale, f"tables are stale in {stale}: run `uv run python -m kit.retirements --write`"
+    assert "<!-- retirements:start -->\n| Model" in (ROOT / "README.md").read_text(encoding="utf-8")
+
+
+def test_past_dates_render_as_retired_and_no_check_markers():
+    rows = retirements.load()
+    later = [{**row, "checked_on": row["retires"].replace(year=row["retires"].year + 1)} for row in rows[:1]]
+    assert "(retired)" in retirements.markdown_table(later)
+    for page in retirements.PAGES:
+        assert "[check]" not in (ROOT / page).read_text(encoding="utf-8"), page
 
 
 def test_example_cases_load():

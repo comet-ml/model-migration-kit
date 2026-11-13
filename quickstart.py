@@ -1,4 +1,4 @@
-"""Ten sample support requests, the retiring model vs its replacement, in about two minutes.
+"""Ten sample support requests, the retiring model vs its replacement, in about 5 minutes from a fresh clone.
 
     uv run quickstart.py
     uv run quickstart.py --old openai/gpt-5 --new openai/gpt-6.1-sol

@@ -3,7 +3,9 @@
 # (uv run python -m kit.retirements) and a test checks they match.
 #
 # kind: "shutoff" = requests fail after the date; "reroute" = requests keep
-# working but are answered by the replacement model (and billed at its rates).
+# working but are answered by the replacement model (and billed at its rates);
+# "depends" = it depends on the deployment, and `note` says how.
+# Update a row: fix it, set checked_on to today, run `uv run python -m kit.retirements --write`.
 
 - model: claude-sonnet-4-5-20250929
   provider: anthropic
@@ -20,7 +22,7 @@
   retires: 2026-11-19
   replacement: gpt-5.6-sol / gpt-5.6-terra
   kind: shutoff
-  source: https://learn.microsoft.com/en-us/azure/ai-foundry/openai/concepts/model-retirements
+  source: https://learn.microsoft.com/en-us/azure/foundry/openai/concepts/model-retirement-schedule
   checked_on: 2026-11-13
 
 - model: gemini-2.5-pro
@@ -29,7 +31,7 @@
   retires: 2026-12-01
   replacement: gemini-3.8-flash
   kind: reroute
-  source: https://ai.google.dev/gemini-api/docs/deprecations
+  source: https://aistudio.google.com/docs/deprecations
   checked_on: 2026-11-13
 
 - model: gemini-2.5-flash
@@ -38,7 +40,7 @@
   retires: 2026-12-01
   replacement: gemini-3.5-flash-lite
   kind: reroute
-  source: https://ai.google.dev/gemini-api/docs/deprecations
+  source: https://aistudio.google.com/docs/deprecations
   checked_on: 2026-11-13
 
 - model: gpt-5
@@ -144,25 +146,26 @@
   provider: azure-openai
   litellm: azure/<your-gpt-4o-deployment>
   retires: 2027-01-14
-  replacement: "[check]"
-  kind: shutoff
-  source: https://learn.microsoft.com/en-us/azure/ai-foundry/openai/concepts/model-retirements
+  replacement: gpt-5.1
+  kind: depends
+  note: Global Standard and Data Zone Standard deployments auto-upgrade to gpt-5.1; Provisioned deployments and ones set to NoAutoUpgrade stop working
+  source: https://learn.microsoft.com/en-us/azure/foundry/openai/concepts/model-retirement-schedule
   checked_on: 2026-11-13
 
 - model: gpt-4o (2024-08-06, 2024-11-20)
   provider: azure-openai
   litellm: azure/<your-gpt-4o-deployment>
   retires: 2027-04-14
-  replacement: "[check]"
+  replacement: gpt-5.1
   kind: shutoff
-  source: https://learn.microsoft.com/en-us/azure/ai-foundry/openai/concepts/model-retirements
+  source: https://learn.microsoft.com/en-us/azure/foundry/openai/concepts/model-retirement-schedule
   checked_on: 2026-11-13
 
 - model: claude-sonnet-4-5 (Bedrock)
   provider: bedrock
   litellm: bedrock/<your-sonnet-4-5-model-id>
   retires: 2027-04-08
-  replacement: "[check]"
+  replacement: not announced as of 2026-11-13
   kind: shutoff
-  source: https://docs.aws.amazon.com/bedrock/latest/userguide/model-lifecycle.html
+  source: https://docs.aws.amazon.com/bedrock/latest/userguide/model-lifecycle-legacy.html
   checked_on: 2026-11-13

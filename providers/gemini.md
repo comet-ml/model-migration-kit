@@ -1,6 +1,13 @@
 # Gemini API: gemini-2.5-flash and gemini-2.5-pro, Dec 1, 2026
 
-**What happens:** a reroute, not a shutoff. From Dec 1, 2026, Gemini API requests to `gemini-2.5-flash` are answered by `gemini-3.5-flash-lite`, and requests to `gemini-2.5-pro` by `gemini-3.8-flash`, billed at the new model's rates. Your code keeps working; the answers change. `gemini-2.5-flash-lite` is not affected. Source: [Gemini API deprecations](https://ai.google.dev/gemini-api/docs/deprecations) (checked 2026-11-13). Whether the same reroute applies on Vertex AI: [check].
+**What happens:** a reroute, not a shutoff. From Dec 1, 2026, Gemini API requests to `gemini-2.5-flash` are answered by `gemini-3.5-flash-lite`, and requests to `gemini-2.5-pro` by `gemini-3.8-flash`, billed at the new model's rates. Your code keeps working; the answers change. `gemini-2.5-flash-lite` is not affected. Source: [Gemini API deprecations](https://aistudio.google.com/docs/deprecations) (checked 2026-11-13). The reroute is on the Gemini API; Vertex AI runs on its own schedule, and its pages don't announce this reroute as of 2026-11-13. Google also limits Gemini 2.5 to accounts that used it before, so a new key may not reach the old model at all.
+
+<!-- retirements:start -->
+| Model | Provider | Date | What happens | Replacement | Source (checked) |
+|---|---|---|---|---|---|
+| `gemini-2.5-pro` | gemini | Dec 1, 2026 | requests rerouted to the replacement | `gemini-3.8-flash` | [link](https://aistudio.google.com/docs/deprecations) (2026-11-13) |
+| `gemini-2.5-flash` | gemini | Dec 1, 2026 | requests rerouted to the replacement | `gemini-3.5-flash-lite` | [link](https://aistudio.google.com/docs/deprecations) (2026-11-13) |
+<!-- retirements:end -->
 
 **What the replacement changes that matters** (for `gemini-3.8-flash`, from [What's new in Gemini 3.8](https://aistudio.google.com/docs/whats-new-gemini-3.8)):
 
@@ -8,7 +15,7 @@
 - Remove `temperature`, `top_p`, `top_k` and `candidate_count`.
 - Remove prefilled model turns.
 
-For `gemini-3.5-flash-lite` we found no sourced migration notes. In our run LiteLLM printed: "`temperature`, `top_p`, and `top_k` continue to function for Gemini 3+ (gemini-3.5-flash-lite) but are planned for removal in a future release."
+For `gemini-3.5-flash-lite` (from [What's new in Gemini 3.6](https://aistudio.google.com/docs/whats-new-gemini-3.6), which covers Flash-Lite): `temperature`, `top_p` and `top_k` are ignored and will error in future model generations, and `thinking_budget` is replaced by `thinking_level` (default `minimal`). In our run LiteLLM also printed that these parameters are "planned for removal".
 
 **Check your request parameters first:**
 
