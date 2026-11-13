@@ -56,5 +56,18 @@ def test_openai_sol_lint():
 
 
 def test_models_without_sourced_rules_return_nothing():
-    assert params.lint("gemini/gemini-3.5-flash-lite", {"temperature": 0.2}) == []
-    assert not params.has_rules("gemini/gemini-3.5-flash-lite")
+    assert params.lint("gemini/gemini-2.5-flash", {"temperature": 0.2}) == []
+    assert not params.has_rules("gemini/gemini-2.5-flash")
+
+
+def test_gemini_3_5_flash_lite_ignores_sampling_params():
+    found = params.lint("gemini/gemini-3.5-flash-lite", {"temperature": 0.2, "thinking_budget": 512})
+    assert {(i.param, i.effect) for i in found} == {("temperature", "change"), ("thinking_budget", "change")}
+    assert all("3.6" in i.source for i in found)
+
+
+def test_openai_families_match_exactly():
+    # "sol" inside another name is not Sol, and Terra keeps temperature at effort none.
+    assert params.lint("openai/gpt-6.1-terra", {"reasoning_effort": "none", "temperature": 0.2}) == []
+    assert not params.has_rules("openai/gpt-6-solar")
+    assert params.has_rules("openai/gpt-6-luna") and params.has_rules("openai/gpt-6.1-sol")

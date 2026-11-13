@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from urllib.parse import urlencode
 
-from dotenv import load_dotenv
+from dotenv import find_dotenv, load_dotenv
 
 REPO = "https://github.com/comet-ml/model-migration-kit"
 NEW_ISSUE = REPO + "/issues/new/choose"
@@ -46,7 +46,7 @@ class Settings:
 
 
 def load() -> Settings:
-    load_dotenv()
+    load_dotenv(find_dotenv(usecwd=True))  # the .env where you run the command
     for name in [n for n, v in os.environ.items() if n.startswith("OPIK_") and not v.strip()]:
         del os.environ[name]
     # Model answers can hold any character; a Windows console shouldn't crash on one.
