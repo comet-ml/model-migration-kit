@@ -62,6 +62,8 @@ def tiles(summary: dict) -> list[tuple[str, str, str]]:
         ("hot" if summary.get("failed_on_new") else "", f"{len(summary.get('failed_on_new', []))}",
          "requests that ran on the old model and failed on the new one"),
         ("", f"{o['errors']} → {n['errors']}", "calls that failed after retries"),
+        ("hot" if n.get("truncated") else "", f"{o.get('truncated', 0)} → {n.get('truncated', 0)}",
+         "answers cut off at max_tokens (raise it if the new model needs more)"),
     ]
 
 

@@ -20,7 +20,8 @@ bedrock/<model-id>, vertex_ai/<model>, ...).
 
 --no-opik runs the same checks on your machine and writes only the report.
 Exit status: 0 done, 2 the run can't tell you anything (no answers, nothing
-judged), 3 more answers changed meaning than --fail-on-changed allows.
+judged; with --fail-on-changed, also when some cases went unjudged), 3 more
+answers changed meaning (or failed on the new model) than --fail-on-changed allows.
 """
 
 import argparse
@@ -37,6 +38,34 @@ from kit import params as params_lint
 from kit.meaning import MeaningChanged
 
 RESERVED_PARAMS = ("messages", "model", "stream")  # the kit sets these itself
+SECRET_PARAMS = ("api_key", "extra_headers", "headers", "authorization", "aws_secret_access_key", "azure_ad_token")
+
+
+def redact(params: dict | None) -> dict:
+    """The request parameters with credentials hidden, for reports and Opik."""
+    return {k: ("[hidden]" if k.lower() in SECRET_PARAMS else v) for k, v in (params or {}).items()}
+
+
+def render_conversation(item: dict) -> str:
+    """A case's request as text: the last message, or the whole conversation for a multi-turn case."""
+    turns = item.get("messages") or []
+    if len(turns) > 1:
+        return "\n\n".join(f"{turn['role'].upper()}: {turn['content']}" for turn in turns)
+    return item.get("input", "")
+
+
+def flush_opik() -> None:
+    """Send buffered traces before exit, and say so if some didn't make it."""
+    import opik
+    from opik.api_objects import opik_client
+
+    try:
+        sent = opik_client.get_global_client().flush()
+    except Exception:  # noqa: BLE001 (tracing off, or no client was ever made)
+        opik.flush_tracker()
+        return
+    if sent is False:
+        print("Warning: some traces may not have reached Opik before the timeout.", file=sys.stderr)
 EXIT_UNUSABLE, EXIT_TOO_MANY_CHANGED = 2, 3
 
 
@@ -99,7 +128,9 @@ def run_side_opik(dataset, item_ids, model, role, run_name, metrics, threads, ju
         task=make_task(model, old_answers, params, system),
         scoring_metrics=metrics,
         experiment_name=experiment_name(run_name, role, model),
-        experiment_config={"role": role, "model": model, "judge_model": judge, "run": run_name, "params": params or {}},
+        experiment_config={"role": role, "model": model, "judge_model": judge, "run": run_name,
+                           "params": redact(params)},
+        experiment_tags=["model-migration-kit", role, model.split("/")[-1]],
         dataset_item_ids=item_ids,
         task_threads=threads,
     )
@@ -198,7 +229,7 @@ def judged_rows(old_cases: dict, other_cases: dict) -> list[dict]:
             "id": item_id,
             "case": new["item"].get("case", item_id),
             "category": new["item"].get("category", ""),
-            "request": new["item"]["input"],
+            "request": render_conversation(new["item"]),
             "old": old.get("output", ""),
             "new": new.get("output", ""),
             "old_error": old.get("error"),
@@ -253,7 +284,7 @@ def summarize(old_cases: dict, new_cases: dict, *, old_model: str, new_model: st
     if repeat_cases is not None:
         repeat = judged_rows(old_cases, repeat_cases)
         noise = {"meaning_changed": sum(r["meaning_changed"] for r in repeat),
-                 "judged": sum(r["scoring"] == "judged" for r in repeat)}
+                 "judged": sum(r["scoring"] == "judged" for r in repeat), "cases": len(repeat)}
     lint = params_lint.lint(new_model, params or {})
     return {
         "run": run_name,
@@ -279,7 +310,7 @@ def summarize(old_cases: dict, new_cases: dict, *, old_model: str, new_model: st
         "old_stats": old_stats,
         "new_stats": new_stats,
         "judge_cost_usd": sum(judge_costs) if judge_costs else None,
-        "params": params or {},
+        "params": redact(params),
         "params_lint": [issue.__dict__ for issue in lint],
         "params_lint_has_rules": params_lint.has_rules(new_model),
         "opik": opik,
@@ -318,7 +349,7 @@ def run_comparison(cases: list[dict], old: str, new: str, dataset_name: str | No
                 break  # nothing to compare against; the summary says so
     finally:
         if use_opik:
-            opik.flush_tracker()  # send buffered traces before the script exits
+            flush_opik()  # send buffered traces before the script exits
     results.setdefault("new", {})
     shown = [experiments[r]["id"] for r in ("old", "new") if r in experiments]
     link = compare_url(experiments.get("old", {}).get("url"), shown) if len(shown) == 2 else None
@@ -333,8 +364,13 @@ def headline(summary: dict) -> str:
     if summary["status"] == "unusable":
         return f"No result: {summary['status_reason']}."
     text = f"{summary['meaning_changed']} of {summary['judged']} judged answers changed meaning"
-    if summary.get("noise"):
-        text += f" ({summary['noise']['meaning_changed']} expected from run-to-run noise)"
+    noise = summary.get("noise")
+    if noise and noise["judged"] and noise["judged"] == noise.get("cases", noise["judged"]):
+        text += f" ({noise['meaning_changed']} expected from run-to-run noise)"
+    elif noise:
+        text += f" (run-to-run noise unknown: the old-vs-itself pass judged {noise['judged']} cases)"
+    if summary.get("failed_on_new"):
+        text += f"; {len(summary['failed_on_new'])} requests failed on the new model"
     if summary["status"] == "inconclusive":
         text += f". Inconclusive: {summary['status_reason']}"
     return text
@@ -357,6 +393,9 @@ def print_summary(summary: dict, path: Path) -> None:
     print(f"  estimated model cost (LiteLLM prices, without the judge): {num(o['total_cost_usd'], '${:.4f}')} -> "
           f"{num(n['total_cost_usd'], '${:.4f}')}; judge {num(summary['judge_cost_usd'], '${:.4f}')}")
     print(f"  errors: {o['errors']} -> {n['errors']}; failed on new model only: {len(summary['failed_on_new'])}")
+    if n["truncated"] or n["tool_calls"] or o["truncated"]:
+        print(f"  cut off at max_tokens: {o['truncated']} -> {n['truncated']} (raise max_tokens if the new model "
+              f"needs more); tool calls on the new model: {n['tool_calls']}")
     for failure in summary["failed_on_new"][:5]:
         print(f"    - {failure['case']}: {failure['error'][:160]}")
     if summary["params"]:
@@ -431,6 +470,8 @@ def build_parser(settings: config.Settings) -> argparse.ArgumentParser:
     parser.add_argument("--no-opik", action="store_true",
                         help="report only: nothing is sent to Opik (the model calls still go to the providers)")
     parser.add_argument("--fail-on-changed", type=int, metavar="N", help="exit 3 if more than N answers changed meaning")
+    parser.add_argument("--project", default=settings.project,
+                        help=f"Opik project for the dataset and experiments ({settings.project}; or OPIK_PROJECT_NAME)")
     parser.add_argument("--deadline-minutes", type=positive_int, default=30,
                         help="stop retrying rate-limited calls after this long (default 30)")
     return parser
@@ -443,12 +484,17 @@ def main(argv=None) -> None:
     params = read_params(parser, args.params, args.params_file)
     if args.no_opik and args.dataset and not args.cases:
         parser.error("--no-opik needs --cases: reading a dataset needs Opik")
+    if not args.cases and not args.dataset:
+        parser.error("give --cases <file>, or --dataset <name> to read an existing Opik dataset "
+                     "(for example one written by kit.capture)")
+    settings = config.Settings(project=args.project, judge=settings.judge, threads=settings.threads)
     try:
         system = Path(args.system).read_text(encoding="utf-8") if args.system else None
         cases = capture.load_file(args.cases, system) if args.cases else None
     except (OSError, ValueError) as error:
         parser.error(str(error))
     judge, warning = config.pick_judge(args.old, args.new, args.judge)
+    print(f"Judge: {judge} (reads both answers; --judge to choose another)")
     if warning:
         print(f"Note: {warning}")
     for issue in params_lint.lint(args.new, params):
@@ -461,7 +507,7 @@ def main(argv=None) -> None:
         opik.set_tracing_active(False)
     else:
         preflight.opik_ready()
-    preflight.models_ready(args.old, args.new, judge)
+    preflight.models_ready(args.old, args.new, judge=judge)
     cases = cases or load_cases(None, args.dataset, settings.project, system)
     cases = cases[: args.limit]
     llm.set_deadline(args.deadline_minutes)
@@ -471,8 +517,11 @@ def main(argv=None) -> None:
     print_summary(summary, path)
     if summary["status"] == "unusable":
         sys.exit(EXIT_UNUSABLE)
-    if args.fail_on_changed is not None and summary["meaning_changed"] > args.fail_on_changed:
-        sys.exit(EXIT_TOO_MANY_CHANGED)
+    if args.fail_on_changed is not None:
+        if summary["status"] == "inconclusive":
+            sys.exit(EXIT_UNUSABLE)  # a CI gate can't pass on cases nobody judged
+        if summary["meaning_changed"] + len(summary["failed_on_new"]) > args.fail_on_changed:
+            sys.exit(EXIT_TOO_MANY_CHANGED)
 
 
 if __name__ == "__main__":

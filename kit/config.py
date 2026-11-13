@@ -18,8 +18,10 @@ NEW_ISSUE = REPO + "/issues/new/choose"
 DEFAULT_PROJECT = "model-migration-kit"
 
 # Judge candidates, best first. The default judge is the first one whose key you
-# have and that is neither the old nor the new model.
-JUDGES = ("gemini/gemini-3.8-flash", "openai/gpt-6.1-terra", "anthropic/claude-sonnet-5-5")
+# have and that is neither the old nor the new model; the second model per
+# provider covers a run where the first one is being tested.
+JUDGES = ("gemini/gemini-3.8-flash", "openai/gpt-6.1-terra", "anthropic/claude-sonnet-5-5",
+          "gemini/gemini-3.5-flash", "openai/gpt-6-luna", "anthropic/claude-haiku-5-5")
 
 
 def comet_link(path: str, content: str) -> str:
@@ -47,7 +49,10 @@ class Settings:
 
 def load() -> Settings:
     load_dotenv(find_dotenv(usecwd=True))  # the .env where you run the command
-    for name in [n for n, v in os.environ.items() if n.startswith("OPIK_") and not v.strip()]:
+    # A blank line copied from .env.example (GEMINI_API_KEY=) means "not set", not an empty key.
+    blank = [n for n, v in os.environ.items() if not v.strip() and (
+        n.startswith(("OPIK_", "AZURE_", "AWS_", "VERTEXAI_")) or n.endswith("_API_KEY") or n == "JUDGE_MODEL")]
+    for name in blank:
         del os.environ[name]
     # Model answers can hold any character; a Windows console shouldn't crash on one.
     for stream in (sys.stdout, sys.stderr):

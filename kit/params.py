@@ -16,6 +16,7 @@ compare.py still records every call that fails on the new model.
 
 import argparse
 import json
+from pathlib import Path
 import re
 from dataclasses import dataclass
 
@@ -131,16 +132,19 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--model", required=True, help="the model you're moving to (LiteLLM name)")
     parser.add_argument("--params", default="{}", help="JSON of the parameters your app sends")
+    parser.add_argument("--params-file", help="the same JSON, read from a file (easier in PowerShell)")
     args = parser.parse_args()
     try:
-        params = json.loads(args.params)
+        params = json.loads(Path(args.params_file).read_text(encoding="utf-8") if args.params_file else args.params)
+    except OSError as error:
+        parser.error(f"--params-file: {error}")
     except json.JSONDecodeError as error:
         parser.error(f"--params is not JSON: {error}")
     if not isinstance(params, dict):
         parser.error('--params must be a JSON object, e.g. {"temperature": 0.2}')
     found = lint(args.model, params)
     if not has_rules(args.model):
-        print(f"No sourced rules for {args.model} yet. Run compare.py: it records calls that fail on the new model.")
+        print(f"No sourced rules for {args.model} yet. Run kit.compare: it records calls that fail on the new model.")
     for issue in found:
         print(f"{issue.effect.upper():<7} {issue.param}: {issue.why}  ({issue.source})")
     if has_rules(args.model) and not found:

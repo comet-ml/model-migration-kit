@@ -24,6 +24,7 @@ RETRYABLE = (
     litellm.RateLimitError,
     litellm.ServiceUnavailableError,
     litellm.InternalServerError,
+    litellm.BadGatewayError,
     litellm.Timeout,
     litellm.APIConnectionError,
 )
@@ -40,26 +41,33 @@ def set_deadline(minutes: float | None) -> None:
     _deadline = time.monotonic() + minutes * 60 if minutes else None
 
 
-def complete(model: str, messages: list[dict], max_attempts: int = 4, first_wait_s: float = 5, **kwargs) -> dict:
+def complete(model: str, messages: list[dict], max_attempts: int | None = None, first_wait_s: float = 5,
+             track: bool = True, **kwargs) -> dict:
     """Call `model` and return its text plus latency, tokens and cost (None when unknown).
 
-    latency_s is the successful attempt only, not the time spent waiting on retries.
+    Rate limits and outages are retried with backoff (5s, doubling, at most 60s
+    apart) until the deadline from set_deadline(), or 6 attempts when there is
+    no deadline. latency_s is the successful attempt only. track=False keeps the
+    call out of Opik (the judge: its time and cost would otherwise land in the
+    new model's traces and make it look slower and costlier).
     """
+    call = _tracked_completion if track else litellm.completion
     kwargs.setdefault("timeout", TIMEOUT_S)
-    wait = first_wait_s
-    for attempt in range(1, max_attempts + 1):
+    limit = max_attempts or (None if _deadline is not None else 6)
+    wait, attempt = first_wait_s, 0
+    while True:
+        attempt += 1
         started = time.perf_counter()
         try:
-            response = _tracked_completion(model=model, messages=messages, **kwargs)
+            response = call(model=model, messages=messages, **kwargs)
             break
         except NOT_RETRYABLE:
             raise
         except RETRYABLE as error:
             out_of_time = _deadline is not None and time.monotonic() + wait > _deadline
-            if attempt == max_attempts or out_of_time:
+            if (limit is not None and attempt >= limit) or out_of_time:
                 raise
-            print(f"  {model}: {type(error).__name__}, retry {attempt}/{max_attempts - 1} in {wait:.0f}s",
-                  file=sys.stderr, flush=True)
+            print(f"  {model}: {type(error).__name__}, retry {attempt} in {wait:.0f}s", file=sys.stderr, flush=True)
             time.sleep(wait + random.uniform(0, 1))
             wait = min(wait * 2, 60)
     latency = time.perf_counter() - started

@@ -90,7 +90,7 @@ def test_noise_floor_goes_in_the_headline():
     new = [case("i1", "a", "A2", scores=judged(True))]
     repeat = [case("i1", "a", "A3", scores=judged(True)), case("i2", "b", "B", scores=judged(False))]
     s = summarize(OLD[:2], new, repeat_cases=dict(repeat))
-    assert s["noise"] == {"meaning_changed": 1, "judged": 2}
+    assert s["noise"] == {"meaning_changed": 1, "judged": 2, "cases": 2}
     assert "(1 expected from run-to-run noise)" in compare.headline(s)
 
 
@@ -235,8 +235,21 @@ def test_config_drops_blank_opik_values_and_reads_after_dotenv(tmp_path, monkeyp
 def test_judge_avoids_the_compared_models(monkeypatch):
     monkeypatch.setattr(config, "has_key", lambda model: model.startswith("gemini/"))
     assert config.pick_judge("openai/a", "openai/b") == ("gemini/gemini-3.8-flash", None)
+    # The usual Gemini judge is being tested, so the second Gemini judge steps in.
+    assert config.pick_judge("gemini/gemini-2.5-pro", "gemini/gemini-3.8-flash") == ("gemini/gemini-3.5-flash", None)
+    # Only one judge model reachable and it's the new model: it is used, with a warning.
+    monkeypatch.setattr(config, "has_key", lambda model: model == "gemini/gemini-3.8-flash")
     judge, warning = config.pick_judge("gemini/gemini-2.5-pro", "gemini/gemini-3.8-flash")
     assert judge == "gemini/gemini-3.8-flash" and "grades its own" in warning
+
+
+def test_blank_keys_from_env_example_count_as_unset(monkeypatch, tmp_path):
+    (tmp_path / ".env").write_text("GEMINI_API_KEY=\nOPENAI_API_KEY=sk-test\n", encoding="utf-8")
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    config.load()
+    assert "GEMINI_API_KEY" not in config.os.environ and config.os.environ["OPENAI_API_KEY"] == "sk-test"
 
 
 def test_platform_credentials_come_from_litellm(monkeypatch):
@@ -251,3 +264,14 @@ def test_platform_credentials_come_from_litellm(monkeypatch):
     monkeypatch.setenv("AWS_PROFILE", "work")
     monkeypatch.setenv("AWS_REGION_NAME", "us-east-1")
     assert config.missing_env("bedrock/anthropic.claude-sonnet-4-5-20250929-v1:0") == []
+
+
+def test_headline_names_failures_and_unknown_noise():
+    summary = {"status": "ok", "meaning_changed": 0, "judged": 1, "noise": {"meaning_changed": 0, "judged": 0, "cases": 30},
+               "failed_on_new": [{"case": "a", "error": "x"}] * 29}
+    text = compare.headline(summary)
+    assert "29 requests failed on the new model" in text and "noise unknown" in text
+
+
+def test_credentials_in_params_never_reach_the_report():
+    assert compare.redact({"api_key": "sk-1", "temperature": 0.2}) == {"api_key": "[hidden]", "temperature": 0.2}

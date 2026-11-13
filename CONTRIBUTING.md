@@ -15,7 +15,7 @@ Issues are welcome: a wrong date, a missing model, or a surprising regression (w
 
 ## Add a provider or model family
 
-- **Calling it:** nothing to add if LiteLLM supports it. `kit/config.py` asks LiteLLM which credentials the model needs; add the variables to `.env.example` and a row to "Your platform" in the README.
+- **Calling it:** nothing to add if LiteLLM supports it. `kit/config.py` asks LiteLLM which credentials the model needs; add the variables to `.env.example` and a row to "Platforms" in the README.
 - **Parameter rules:** add a function to [`kit/params.py`](kit/params.py) that returns `Issue`s, each with its source URL, and one row to `RULES` with an exact pattern for the model family. Add a test in `tests/test_providers_params.py`.
 - **A provider page:** add `providers/<name>.md` with the retirements markers and list it in `PAGES` in `kit/retirements.py`.
 

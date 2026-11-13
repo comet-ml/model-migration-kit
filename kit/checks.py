@@ -46,6 +46,8 @@ def parse_json(text: str) -> tuple[object | None, str]:
         value = json.loads(body)
     except (json.JSONDecodeError, TypeError) as error:
         return None, f"not valid JSON ({error.msg if hasattr(error, 'msg') else error})"
+    if value is None:
+        return None, "the answer is JSON null"
     return value, "valid JSON inside a code fence" if fenced else "valid JSON"
 
 
@@ -63,7 +65,7 @@ def detect_format(text: str) -> str:
         except json.JSONDecodeError:
             pass
     lines = [line.strip() for line in body.splitlines() if line.strip()]
-    if any(line.startswith("#") or line.startswith("|---") or line.startswith("| ---") for line in lines) or "**" in body:
+    if any(re.match(r"^#{1,6}\s", line) or line.startswith("|---") or line.startswith("| ---") for line in lines) or "**" in body:
         return "markdown"
     if sum(bool(re.match(r"^([-*•]|\d+[.)])\s", line)) for line in lines) >= 2:
         return "list"

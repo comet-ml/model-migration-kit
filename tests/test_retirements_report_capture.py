@@ -85,3 +85,23 @@ def test_report_renders_and_escapes(tmp_path):
     assert page.index("Compare both experiments in Opik") < page.index('href="https://x/new"')
     assert "utm_content=report" in page and "agent evaluation platform built by Comet" in page
     assert json.loads((tmp_path / "results.json").read_text(encoding="utf-8"))["meaning_changed"] == 1
+
+
+def test_an_id_column_in_a_file_is_not_an_opik_item_id(tmp_path):
+    path = tmp_path / "cases.csv"
+    path.write_text("id,input\nT-1001,where is my order\n", encoding="utf-8")
+    assert "id" not in capture.load_file(path)[0]
+
+
+def test_jsonl_strings_may_hold_a_line_separator(tmp_path):
+    path = tmp_path / "cases.jsonl"
+    path.write_text('{"input": "one two"}\n', encoding="utf-8")
+    assert capture.load_file(path)[0]["input"] == "one two"
+
+
+def test_a_csv_messages_column_is_read_as_a_conversation(tmp_path):
+    path = tmp_path / "cases.csv"
+    path.write_text('messages\n"[{""role"": ""user"", ""content"": ""hi""}, {""role"": ""assistant"", ""content"": ""yo""}, '
+                    '{""role"": ""user"", ""content"": ""cancel""}]"\n', encoding="utf-8")
+    case = capture.load_file(path)[0]
+    assert case["input"] == "cancel" and len(case["messages"]) == 3

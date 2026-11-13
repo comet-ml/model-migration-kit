@@ -11,13 +11,13 @@
 | `gpt-5-mini` | openai | Dec 11, 2026 | requests fail | `gpt-6.1-terra` | [link](https://developers.openai.com/api/docs/deprecations) (2026-11-13) |
 | `gpt-5-nano` | openai | Dec 11, 2026 | requests fail | `gpt-6-luna` | [link](https://developers.openai.com/api/docs/deprecations) (2026-11-13) |
 | `o3` | openai | Dec 11, 2026 | requests fail | `gpt-6.1-sol` | [link](https://developers.openai.com/api/docs/deprecations) (2026-11-13) |
-| `o3-pro` | openai | Dec 11, 2026 | requests fail | `gpt-6.1-sol (reasoning.mode: pro, Responses API)` | [link](https://developers.openai.com/api/docs/deprecations) (2026-11-13) |
+| `o3-pro` | openai | Jan 6, 2027 | requests fail | `gpt-6.1-sol (reasoning.mode: pro, Responses API)` | [link](https://developers.openai.com/api/docs/deprecations) (2026-11-13) |
 | `gpt-4o-2024-08-06` | openai | Jan 14, 2027 | requests fail | `gpt-6-luna` | [link](https://developers.openai.com/api/docs/deprecations) (2026-11-13) |
 | `gpt-4o-2024-11-20` | openai | Jan 14, 2027 | requests fail | `gpt-6-luna` | [link](https://developers.openai.com/api/docs/deprecations) (2026-11-13) |
 | `gpt-4o-mini-2024-07-18` | openai | Jan 14, 2027 | requests fail | `gpt-6-luna` | [link](https://developers.openai.com/api/docs/deprecations) (2026-11-13) |
 | `gpt-4.1-2025-04-14` | openai | Jan 14, 2027 | requests fail | `gpt-6-luna` | [link](https://developers.openai.com/api/docs/deprecations) (2026-11-13) |
-| `gpt-4.1-mini-2025-04-14` | openai | Jan 14, 2027 | requests fail | `gpt-6-luna` | [link](https://developers.openai.com/api/docs/deprecations) (2026-11-13) |
 | `gpt-4o (2024-05-13)` | azure-openai | Jan 14, 2027 | Global Standard and Data Zone Standard deployments auto-upgrade to gpt-5.1; Provisioned deployments and ones set to NoAutoUpgrade stop working | `gpt-5.1` | [link](https://learn.microsoft.com/en-us/azure/foundry/openai/concepts/model-retirement-schedule) (2026-11-13) |
+| `gpt-4.1-mini-2025-04-14` | openai | Jan 20, 2027 | requests fail | `gpt-6-luna` | [link](https://developers.openai.com/api/docs/deprecations) (2026-11-13) |
 | `gpt-4o (2024-08-06, 2024-11-20)` | azure-openai | Apr 14, 2027 | requests fail | `gpt-5.1` | [link](https://learn.microsoft.com/en-us/azure/foundry/openai/concepts/model-retirement-schedule) (2026-11-13) |
 <!-- retirements:end -->
 
