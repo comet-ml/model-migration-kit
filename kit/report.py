@@ -59,7 +59,8 @@ def render(summary: dict) -> str:
     changed = [r for r in summary["rows"] if r["meaning_changed"] or r["fired"] or r["old_error"] or r["new_error"]]
     body_rows = []
     for row in changed:
-        tags = "".join(f'<span class="tag" title="{_e(f["reason"])}">{_e(f["check"])}</span>' for f in row["fired"])
+        tags = "".join(f'<span class="tag" title="{_e(f["reason"])}">{_e(f["check"])}</span>' for f in row["fired"]
+                       if f["check"] != "same_meaning")  # shown as the "meaning: <kind>" tag
         if row["meaning_changed"]:
             tags = f'<span class="tag">meaning: {_e(row["meaning_kind"])}</span>' + tags
         details = "<br>".join(_e(f"{f['check']}: {f['reason']}") for f in row["fired"])
