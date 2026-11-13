@@ -1,5 +1,7 @@
 import json
 import re
+
+import pytest
 from pathlib import Path
 
 from kit import capture, report, retirements
@@ -15,7 +17,7 @@ def test_retirements_load_and_are_sorted():
 
 
 def test_readme_table_matches_the_yaml():
-    readme = (ROOT / "README.md").read_text()
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
     block = re.search(r"<!-- retirements:start -->\n(.*?)\n<!-- retirements:end -->", readme, re.DOTALL)
     assert block, "README.md needs the retirements markers"
     assert block.group(1).strip() == retirements.markdown_table(retirements.load()).strip(), (
@@ -38,11 +40,13 @@ def test_csv_cases(tmp_path):
 
 
 def test_trace_input_shapes():
-    assert capture.messages_from_trace_input(
-        {"messages": [{"role": "system", "content": "S"}, {"role": "user", "content": [{"type": "text", "text": "U"}]}]}
-    ) == ("S", "U")
-    assert capture.messages_from_trace_input({"question": "Q"}) == ("", "Q")
-    assert capture.messages_from_trace_input({"foo": 1}) is None
+    case = capture.case_from_trace_input(
+        {"messages": [{"role": "system", "content": "S"}, {"role": "user", "content": [{"type": "text", "text": "U"}]}]},
+        0, "t1")
+    assert (case["system"], case["input"], case["messages"]) == ("S", "U", [])
+    assert capture.case_from_trace_input({"question": "Q"}, 0, "t2")["input"] == "Q"
+    with pytest.raises(capture.Skip):
+        capture.case_from_trace_input({"foo": 1}, 0, "t3")
 
 
 def summary_fixture():
@@ -50,21 +54,26 @@ def summary_fixture():
              "priced": 1, "mean_output_tokens": 10, "mean_chars": 20}
     return {
         "run": "migration-test", "run_at": "now", "old_model": "gemini/old", "new_model": "gemini/new",
-        "judge_model": "gemini/judge", "cases": 1, "meaning_changed": 1, "judged": 1,
+        "judge_model": "gemini/judge", "cases": 1, "meaning_changed": 1, "judged": 1, "judge_failed": 0, "unjudged": 0,
+        "status": "ok", "status_reason": "", "noise": None, "judge_cost_usd": None, "opik": True,
+        "compare_url": "https://x/compare?experiments=%5B%22a%22%2C%22b%22%5D",
         "fired_counts": {"same_meaning": 1}, "preference": {"new": 0, "same": 0, "old": 1}, "new_vs_old_mean": 0.0,
         "old_stats": stats, "new_stats": stats, "params": {"temperature": 0.2}, "params_lint": [],
         "params_lint_has_rules": False, "failed_on_new": [],
-        "experiments": {"old": {"name": "e-old", "url": "https://x/old"}, "new": {"name": "e-new", "url": "https://x/new"}},
+        "experiments": {"old": {"name": "e-old", "id": "a", "url": "https://x/old"},
+                        "new": {"name": "e-new", "id": "b", "url": "https://x/new"}},
         "rows": [{"case": "math-01", "category": "numeric", "request": "How much <back>?", "old": "$102", "new": "$120",
                   "old_error": None, "new_error": None, "fired": [{"check": "same_meaning", "reason": "fact"}],
-                  "meaning_changed": True, "meaning_reason": "fact: $102 -> $120", "meaning_kind": "fact", "better": "old"}],
+                  "old_fired": [], "scoring": "judged", "meaning_changed": True, "meaning_reason": "fact: $102 -> $120", "meaning_kind": "fact", "better": "old"}],
     }
 
 
 def test_report_renders_and_escapes(tmp_path):
     path = report.write(summary_fixture(), tmp_path)
-    page = path.read_text()
+    page = path.read_text(encoding="utf-8")
     assert "1 of 1" in page and "$102" in page and "$120" in page
     assert "How much &lt;back&gt;?" in page
     assert 'href="https://x/new"' in page
-    assert json.loads((tmp_path / "results.json").read_text())["meaning_changed"] == 1
+    assert page.index("Compare both experiments in Opik") < page.index('href="https://x/new"')
+    assert "utm_content=report" in page and "agent evaluation platform built by Comet" in page
+    assert json.loads((tmp_path / "results.json").read_text(encoding="utf-8"))["meaning_changed"] == 1

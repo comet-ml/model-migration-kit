@@ -5,17 +5,21 @@ Model names are LiteLLM names: "gemini/gemini-2.5-flash", "openai/gpt-5",
 the environment (GEMINI_API_KEY, OPENAI_API_KEY, ANTHROPIC_API_KEY).
 """
 
+import random
+import sys
 import time
 
 import litellm
 from opik.integrations.litellm import track_completion
 
+litellm.suppress_debug_info = True  # errors are reported per case; skip LiteLLM's help banner
+
 # Inside an Opik evaluation this becomes an LLM span under the case's trace,
 # with the model, tokens and usage.
 _tracked_completion = track_completion()(litellm.completion)
 
-# Free keys hit per-minute limits during an evaluation. These are worth a retry;
-# anything else (a bad key, a bad model name) fails at once.
+# Rate limits and outages are worth a retry. A bad key, no access or a bad model
+# name fails at once: retrying those only burns the time budget.
 RETRYABLE = (
     litellm.RateLimitError,
     litellm.ServiceUnavailableError,
@@ -23,20 +27,40 @@ RETRYABLE = (
     litellm.Timeout,
     litellm.APIConnectionError,
 )
+NOT_RETRYABLE = (litellm.AuthenticationError, litellm.PermissionDeniedError, litellm.NotFoundError,
+                 litellm.BadRequestError)
+
+TIMEOUT_S = 90  # one request
+_deadline: float | None = None  # monotonic time after which nothing is retried
 
 
-def complete(model: str, messages: list[dict], max_attempts: int = 6, first_wait_s: float = 5, **kwargs) -> dict:
-    """Call `model` and return its text plus latency, tokens and cost (None when unknown)."""
+def set_deadline(minutes: float | None) -> None:
+    """Stop retrying after this many minutes, so a rate-limited run ends instead of crawling."""
+    global _deadline
+    _deadline = time.monotonic() + minutes * 60 if minutes else None
+
+
+def complete(model: str, messages: list[dict], max_attempts: int = 4, first_wait_s: float = 5, **kwargs) -> dict:
+    """Call `model` and return its text plus latency, tokens and cost (None when unknown).
+
+    latency_s is the successful attempt only, not the time spent waiting on retries.
+    """
+    kwargs.setdefault("timeout", TIMEOUT_S)
     wait = first_wait_s
     for attempt in range(1, max_attempts + 1):
         started = time.perf_counter()
         try:
             response = _tracked_completion(model=model, messages=messages, **kwargs)
             break
-        except RETRYABLE:
-            if attempt == max_attempts:
+        except NOT_RETRYABLE:
+            raise
+        except RETRYABLE as error:
+            out_of_time = _deadline is not None and time.monotonic() + wait > _deadline
+            if attempt == max_attempts or out_of_time:
                 raise
-            time.sleep(wait)
+            print(f"  {model}: {type(error).__name__}, retry {attempt}/{max_attempts - 1} in {wait:.0f}s",
+                  file=sys.stderr, flush=True)
+            time.sleep(wait + random.uniform(0, 1))
             wait = min(wait * 2, 60)
     latency = time.perf_counter() - started
     usage = getattr(response, "usage", None)
@@ -44,8 +68,14 @@ def complete(model: str, messages: list[dict], max_attempts: int = 6, first_wait
         cost = litellm.completion_cost(completion_response=response)
     except Exception:  # noqa: BLE001 (LiteLLM has no price for this model)
         cost = None
+    message = response.choices[0].message
+    tool_calls = [
+        {"name": call.function.name, "arguments": call.function.arguments}
+        for call in (getattr(message, "tool_calls", None) or [])
+    ]
     return {
-        "text": response.choices[0].message.content or "",
+        "text": message.content or "",
+        "tool_calls": tool_calls,
         "finish_reason": response.choices[0].finish_reason,
         "latency_s": latency,
         "input_tokens": getattr(usage, "prompt_tokens", None),

@@ -21,8 +21,8 @@ LENGTH_DRIFT_LIMIT = 0.5  # a change of more than 50% in characters
 
 FENCE = re.compile(r"^```[a-zA-Z]*\s*\n(.*?)\n?```\s*$", re.DOTALL)
 
-# An answer that opens with one of these is treated as a refusal. Only the
-# opening is read: answers that help often say "I can't" further down.
+# An answer whose first 200 characters match is treated as a refusal. Answers
+# that help often say "I can't" further down, so only the opening is read.
 REFUSAL = re.compile(
     r"\b(I can(?:not|'t|’t)|I'm (?:not able|unable)|I am (?:not able|unable)|I (?:won't|will not) be able"
     r"|I (?:must|have to) decline|I'm sorry,? but|unfortunately,? (?:I|we) (?:can(?:not|'t|’t)|are unable|aren't able)"
@@ -88,9 +88,13 @@ def _result(name: str, ok: bool, reason: str) -> score_result.ScoreResult:
     return score_result.ScoreResult(name=name, value=1.0 if ok else 0.0, reason=reason)
 
 
-def not_scored(name: str, error: str) -> score_result.ScoreResult:
-    """The model call failed after its retries: nothing to score, kept out of averages."""
-    return score_result.ScoreResult(name=name, value=0.0, reason=f"not scored: {error}", scoring_failed=True)
+def not_scored(name: str, error: str, status: str = "no_answer") -> score_result.ScoreResult:
+    """Nothing to score (a failed call, or a failed judge): kept out of averages.
+
+    status says which: "no_answer" (a model call failed) or "judge_failed".
+    """
+    return score_result.ScoreResult(name=name, value=0.0, reason=f"not scored: {error}", scoring_failed=True,
+                                    metadata={"status": status})
 
 
 class ValidJson(base_metric.BaseMetric):
@@ -119,7 +123,7 @@ class RequiredFields(base_metric.BaseMetric):
             return not_scored(self.name, error)
         if not required_fields:
             return _result(self.name, True, "no fields required")
-        value, how = parse_json(output)
+        value, _ = parse_json(output)
         missing = missing_fields(value, required_fields)
         return _result(self.name, not missing, f"missing {missing}" if missing else f"all of {required_fields}")
 

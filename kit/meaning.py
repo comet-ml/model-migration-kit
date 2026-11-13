@@ -8,19 +8,19 @@ a promise. Wording, tone, length and formatting don't count; the code checks
 in checks.py cover those.
 
 Use a judge model that is neither the old nor the new model, so it isn't
-grading its own answers. The live run used gemini-3.8-flash to judge
+grading its own answers. The 2026-11-13 run used gemini-3.8-flash to judge
 gemini-2.5-flash vs gemini-3.5-flash-lite.
 """
 
 import json
-import os
 
 from opik.evaluation.metrics import base_metric, score_result
 
 from kit.checks import not_scored, strip_fence
 from kit.llm import complete
 
-DEFAULT_JUDGE = os.getenv("JUDGE_MODEL", "gemini/gemini-3.8-flash")
+DEFAULT_JUDGE = "gemini/gemini-3.8-flash"  # compare.py picks one you have a key for (kit/config.py)
+JSON_MODE_PROVIDERS = ("gemini", "openai", "azure", "vertex_ai")  # where response_format json_object is supported
 
 KINDS = ("fact", "decision", "action", "promise", "none")
 
@@ -69,8 +69,9 @@ def parse_verdict(text: str) -> dict:
 
 def judge(request: str, old: str, new: str, system: str = "", model: str = DEFAULT_JUDGE) -> dict:
     prompt = JUDGE_PROMPT.format(system=system or "(none)", request=request, old=old, new=new)
-    reply = complete(model, [{"role": "user", "content": prompt}], response_format={"type": "json_object"})
-    return parse_verdict(reply["text"])
+    extra = {"response_format": {"type": "json_object"}} if model.split("/")[0] in JSON_MODE_PROVIDERS else {}
+    reply = complete(model, [{"role": "user", "content": prompt}], **extra)
+    return {**parse_verdict(reply["text"]), "cost_usd": reply.get("cost_usd")}
 
 
 class MeaningChanged(base_metric.BaseMetric):
@@ -87,13 +88,14 @@ class MeaningChanged(base_metric.BaseMetric):
               error: str | None = None, **ignored):
         if error or old_output is None:
             reason = error or "the old model has no answer for this case"
-            return [not_scored(self.name, reason), not_scored("new_vs_old", reason)]
+            return [not_scored(self.name, reason, "no_answer"), not_scored("new_vs_old", reason, "no_answer")]
         try:
             verdict = judge(input, old_output, output, system=system, model=self.model)
         except Exception as failure:  # noqa: BLE001 (a judge failure is not the model's fault)
-            reason = f"judge failed: {type(failure).__name__}: {failure}"
-            return [not_scored(self.name, reason), not_scored("new_vs_old", reason)]
-        meta = {"kind": verdict["kind"], "better": verdict["better"], "judge_model": self.model}
+            reason = f"judge failed: {type(failure).__name__}: {str(failure)[:300]}"
+            return [not_scored(self.name, reason, "judge_failed"), not_scored("new_vs_old", reason, "judge_failed")]
+        meta = {"status": "judged", "kind": verdict["kind"], "better": verdict["better"], "judge_model": self.model,
+                "judge_cost_usd": verdict["cost_usd"]}
         return [
             score_result.ScoreResult(
                 name=self.name,

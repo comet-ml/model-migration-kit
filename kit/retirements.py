@@ -13,7 +13,7 @@ REQUIRED_KEYS = {"model", "provider", "litellm", "retires", "replacement", "kind
 
 
 def load(path: Path = RETIREMENTS_FILE) -> list[dict]:
-    rows = yaml.safe_load(path.read_text())
+    rows = yaml.safe_load(path.read_text(encoding="utf-8"))
     for row in rows:
         missing = REQUIRED_KEYS - row.keys()
         if missing:
@@ -25,6 +25,10 @@ def load(path: Path = RETIREMENTS_FILE) -> list[dict]:
     return sorted(rows, key=lambda row: row["retires"])
 
 
+def show_date(day: date) -> str:
+    return f"{day:%b} {day.day}, {day.year}"  # %-d isn't available on Windows
+
+
 def markdown_table(rows: list[dict]) -> str:
     lines = [
         "| Model | Provider | Date | What happens | Replacement | Source (checked) |",
@@ -33,7 +37,7 @@ def markdown_table(rows: list[dict]) -> str:
     for row in rows:
         happens = "requests rerouted to the replacement" if row["kind"] == "reroute" else "requests fail"
         lines.append(
-            f"| `{row['model']}` | {row['provider']} | {row['retires']:%b %-d, %Y} | {happens} "
+            f"| `{row['model']}` | {row['provider']} | {show_date(row['retires'])} | {happens} "
             f"| `{row['replacement']}` | [link]({row['source']}) ({row['checked_on']}) |"
         )
     return "\n".join(lines)

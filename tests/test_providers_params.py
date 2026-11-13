@@ -2,7 +2,7 @@
 
 import pytest
 
-from kit import compare, params
+from kit import compare, config, params
 from kit.llm import complete
 
 
@@ -16,7 +16,7 @@ def test_complete_goes_through_litellm_for_every_provider(model):
 def test_missing_keys_names_the_provider_key(monkeypatch):
     for key in ("OPENAI_API_KEY", "ANTHROPIC_API_KEY", "GEMINI_API_KEY", "GOOGLE_API_KEY"):
         monkeypatch.delenv(key, raising=False)
-    assert compare.missing_keys("openai/gpt-5", "anthropic/claude-sonnet-5-5") == [
+    assert config.missing_keys("openai/gpt-5", "anthropic/claude-sonnet-5-5") == [
         "ANTHROPIC_API_KEY (for anthropic/claude-sonnet-5-5)",
         "OPENAI_API_KEY (for openai/gpt-5)",
     ]
@@ -26,9 +26,9 @@ def test_a_failing_call_becomes_an_error_not_a_crash(monkeypatch):
     def boom(*args, **kwargs):
         raise RuntimeError("400: temperature is not supported")
 
-    monkeypatch.setattr(compare, "complete", boom)
-    out = compare.make_task("anthropic/claude-sonnet-5-5", {"c1": {"output": "old answer"}})(
-        {"case": "c1", "input": "hi", "system": ""}
+    monkeypatch.setattr(compare.llm, "complete", boom)
+    out = compare.make_task("anthropic/claude-sonnet-5-5", {"item-1": {"output": "old answer"}})(
+        {"id": "item-1", "case": "c1", "input": "hi", "system": ""}
     )
     assert out["output"] == "" and "temperature" in out["error"] and out["old_output"] == "old answer"
 
