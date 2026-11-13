@@ -3,6 +3,7 @@
 from types import SimpleNamespace
 
 import opik
+import pytest
 
 from kit import rules
 
@@ -15,7 +16,7 @@ class FakeEvaluators:
         self.created = request
 
     def find_evaluators(self, project_id, name, size):
-        return SimpleNamespace(content=[SimpleNamespace(id="rule-1")])
+        return SimpleNamespace(content=[SimpleNamespace(id="rule-1")] if self.created else [])
 
 
 def test_create_sends_a_sampled_policy_judge_on_the_project(monkeypatch):
@@ -32,6 +33,16 @@ def test_create_sends_a_sampled_policy_judge_on_the_project(monkeypatch):
     assert "No refunds over $500." in prompt and "{{input}}" in prompt and "{{output}}" in prompt
     assert rule.code.variables == {"input": "input", "output": "output"}
     assert [(s.name, s.type) for s in rule.code.schema_] == [("follows_policy", "BOOLEAN")]
+
+
+def test_a_second_create_is_refused_instead_of_doubling_the_rule(monkeypatch):
+    evaluators = FakeEvaluators()
+    evaluators.created = "an existing rule"
+    rest = SimpleNamespace(projects=SimpleNamespace(retrieve_project=lambda name: SimpleNamespace(id="proj-1")),
+                           automation_rule_evaluators=evaluators)
+    monkeypatch.setattr(opik, "Opik", lambda: SimpleNamespace(rest_client=rest))
+    with pytest.raises(SystemExit, match="already has the rule"):
+        rules.create("my-app")
 
 
 def test_the_printed_code_metric_runs():

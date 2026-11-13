@@ -16,6 +16,7 @@ import argparse
 from pathlib import Path
 
 from kit import capture, compare, config, llm, preflight, retirements
+from kit import params as params_lint
 
 EXAMPLE = Path(__file__).parent / "examples" / "support-bot"
 
@@ -55,7 +56,10 @@ def main(argv=None) -> None:
         parser.error("give both --old and --new, or neither")
     old, new, provider = (args.old, args.new, config.provider(args.old)) if args.old else default_pair()
     judge, warning = config.pick_judge(old, new, args.judge)
-    print(f"Comparing {old} -> {new} on 10 sample requests (judge: {judge})")
+    params = PARAMS.get(provider, {})
+    flagged = {issue.param for issue in params_lint.lint(new, params)}
+    params = {k: v for k, v in params.items() if k not in flagged}  # what the replacement rejects or drops
+    print(f"Comparing {old} -> {new} on 10 sample requests (judge: {judge}, params {params})")
     if warning:
         print(f"Note: {warning}")
 
@@ -65,12 +69,12 @@ def main(argv=None) -> None:
         opik.set_tracing_active(False)
     else:
         preflight.opik_ready()
-    preflight.models_ready(old, new, judge)
+    preflight.models_ready(old, new, judge=judge)
     cases = capture.load_file(EXAMPLE / "cases.jsonl", system=(EXAMPLE / "system_prompt.md").read_text(encoding="utf-8"))
     sample = [case for case in cases if case["case"] in SAMPLE]
     llm.set_deadline(15)
     summary, report = compare.run_comparison(sample, old, new, "migration-kit-quickstart", judge, settings=settings,
-                                             params=PARAMS.get(provider, {}), use_opik=not args.no_opik)
+                                             params=params, use_opik=not args.no_opik)
     for row in [r for r in summary["rows"] if r["meaning_changed"]][:3]:
         print(f"\n{row['case']}: {row['meaning_reason']}\n  old: {row['old'][:160]!r}\n  new: {row['new'][:160]!r}")
     compare.print_summary(summary, report)  # ends with the link to both experiments in Opik

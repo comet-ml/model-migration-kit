@@ -73,8 +73,14 @@ def normalize(row: dict, index: int, system: str | None = None, input_column: st
     """One case in the kit's shape. `system`, when given, replaces the row's own system prompt."""
     turns = []
     row_system = row.get("system")
-    if isinstance(row.get("messages"), list) and row["messages"]:
-        found_system, turns = split_messages(row["messages"])
+    messages = row.get("messages")
+    if isinstance(messages, str) and messages.strip():  # a CSV cell holding the JSON list
+        try:
+            messages = json.loads(messages)
+        except json.JSONDecodeError as error:
+            raise Skip(f"row {index + 1}: 'messages' isn't a JSON list ({error.msg})") from error
+    if isinstance(messages, list) and messages:
+        found_system, turns = split_messages(messages)
         row_system = row_system or found_system
         text = turns[-1]["content"]
     else:
@@ -116,7 +122,8 @@ def load_file(path: str | Path, system: str | None = None, input_column: str = "
         raise ValueError(f"{path}: no such file")
     if path.suffix == ".jsonl":
         rows = []
-        for number, line in enumerate(path.read_text(encoding="utf-8-sig").splitlines(), 1):
+        # split on newlines only: splitlines() also breaks on U+2028, which JSON strings may hold
+        for number, line in enumerate(path.read_text(encoding="utf-8-sig").split("\n"), 1):
             if line.strip():
                 try:
                     rows.append(json.loads(line))
@@ -134,7 +141,8 @@ def load_file(path: str | Path, system: str | None = None, input_column: str = "
         if not isinstance(row, dict):
             raise ValueError(f"{path} row {index + 1}: each line must be a JSON object")
         try:
-            cases.append(normalize(row, index, system, input_column))
+            # An `id` column in a file is the app's own ID, not an Opik dataset item ID.
+            cases.append(normalize({k: v for k, v in row.items() if k != "id"}, index, system, input_column))
         except Skip as error:
             raise ValueError(f"{path} row {index + 1}: {error}") from error
     return check_unique(cases, str(path))
@@ -216,6 +224,22 @@ def to_dataset(cases: list[dict], dataset_name: str, project_name: str | None = 
     dataset = client.get_or_create_dataset(
         dataset_name, description="Requests for a model migration test", project_name=project_name
     )
+    # A case edited since the last capture replaces its old item, so the dataset
+    # never holds two items with the same case name.
+    incoming = {case["case"]: _key(case) for case in cases}
+    stale = []
+    for item in dataset.get_items():
+        name = item.get("case")
+        if name not in incoming:
+            continue
+        try:
+            same = _key(normalize(item, 0)) == incoming[name]
+        except Skip:
+            same = False
+        if not same:
+            stale.append(item["id"])
+    if stale:
+        dataset.delete(stale)
     dataset.insert([{key: case[key] for key in FIELDS} for case in cases])
     by_content = {}
     for item in dataset.get_items():
@@ -245,7 +269,10 @@ def main(argv=None) -> None:
     args = parser.parse_args(argv)
     if args.last < 1:
         parser.error("--last must be 1 or more")
-    system = Path(args.system).read_text(encoding="utf-8") if args.system else None
+    try:
+        system = Path(args.system).read_text(encoding="utf-8") if args.system else None
+    except OSError as error:
+        parser.error(f"--system: {error}")
     if args.cases:
         try:
             cases = load_file(args.cases, system, args.input_column)

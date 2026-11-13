@@ -107,6 +107,11 @@ def create(project: str, policy: str = DEFAULT_POLICY, model: str = DEFAULT_MODE
     except Exception as error:  # noqa: BLE001 (the SDK's not-found error)
         raise SystemExit(f"Opik project '{project}' not found ({type(error).__name__}). "
                          "Use the project your app logs traces to.") from error
+    existing = rest.automation_rule_evaluators.find_evaluators(project_id=project_id, name=RULE_NAME, size=10)
+    if existing.content:
+        raise SystemExit(f"Project '{project}' already has the rule '{RULE_NAME}' (id {existing.content[0].id}). "
+                         "Edit or delete it in Opik (Online evaluation) rather than adding a second one, "
+                         "which would score every trace twice.")
     rest.automation_rule_evaluators.create_automation_rule_evaluator(
         request=build_rule(project_id, policy, model, sampling_rate, scope))
     found = rest.automation_rule_evaluators.find_evaluators(project_id=project_id, name=RULE_NAME, size=10)
@@ -127,7 +132,8 @@ def main(argv=None) -> None:
     config.load()
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--project", required=True, help="the Opik project your app logs production traces to")
-    parser.add_argument("--policy-file", help="your support policy as text (default: the app's own system prompt)")
+    parser.add_argument("--policy-file", help="your support policy as text (default: the assistant's instructions, "
+                        "which the judge finds only if your app logs its system prompt in the trace input)")
     parser.add_argument("--model", default=DEFAULT_MODEL,
                         help=f"judge model, from an AI provider set up in your Opik workspace (default {DEFAULT_MODEL})")
     parser.add_argument("--sampling-rate", type=float, default=0.1, help="share of traces to score (default 0.1)")
@@ -136,11 +142,19 @@ def main(argv=None) -> None:
     args = parser.parse_args(argv)
     if not 0 < args.sampling_rate <= 1:
         parser.error("--sampling-rate must be more than 0 and at most 1")
-    policy = Path(args.policy_file).read_text(encoding="utf-8") if args.policy_file else DEFAULT_POLICY
+    try:
+        policy = Path(args.policy_file).read_text(encoding="utf-8") if args.policy_file else DEFAULT_POLICY
+    except OSError as error:
+        parser.error(f"--policy-file: {error}")
+    if "{{" in policy:
+        parser.error("--policy-file can't contain '{{': Opik reads it as a template variable")
     preflight.opik_ready()
     rule_id = create(args.project, policy, args.model, args.sampling_rate, args.scope)
     print(f"Created the online evaluation rule '{RULE_NAME}' on project '{args.project}' (id {rule_id}).")
-    print(f"It scores {args.sampling_rate:.0%} of {args.scope} traces as '{SCORE_NAME}' with {args.model}.")
+    sampled = {"production": f"{args.sampling_rate:.0%} of production traces",
+               "experiment": "every experiment trace (sampling applies to production only)",
+               "both": f"{args.sampling_rate:.0%} of production traces and every experiment trace"}[args.scope]
+    print(f"It scores {sampled} as '{SCORE_NAME}' with {args.model}.")
     print("If no scores appear, add that model's provider key in Opik: Configuration > AI Providers.")
     print("\nTo also check JSON answers, add a second rule: Online evaluation > Create rule > Code evaluator,\n"
           "paste the metric below, set REQUIRED_FIELDS, and map `output` to the trace's output.\n"

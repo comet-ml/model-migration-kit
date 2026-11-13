@@ -70,7 +70,7 @@ def parse_verdict(text: str) -> dict:
 def judge(request: str, old: str, new: str, system: str = "", model: str = DEFAULT_JUDGE) -> dict:
     prompt = JUDGE_PROMPT.format(system=system or "(none)", request=request, old=old, new=new)
     extra = {"response_format": {"type": "json_object"}} if model.split("/")[0] in JSON_MODE_PROVIDERS else {}
-    reply = complete(model, [{"role": "user", "content": prompt}], **extra)
+    reply = complete(model, [{"role": "user", "content": prompt}], track=False, **extra)
     return {**parse_verdict(reply["text"]), "cost_usd": reply.get("cost_usd")}
 
 
@@ -85,12 +85,14 @@ class MeaningChanged(base_metric.BaseMetric):
         self.model = model
 
     def score(self, input: str, output: str, old_output: str | None = None, system: str = "",
-              error: str | None = None, **ignored):
+              error: str | None = None, messages: list | None = None, **ignored):
         if error or old_output is None:
             reason = error or "the old model has no answer for this case"
             return [not_scored(self.name, reason, "no_answer"), not_scored("new_vs_old", reason, "no_answer")]
         try:
-            verdict = judge(input, old_output, output, system=system, model=self.model)
+            # A multi-turn case: the judge reads the whole conversation, not only the last message.
+            request = "\n\n".join(f"{t['role'].upper()}: {t['content']}" for t in messages) if messages and len(messages) > 1 else input
+            verdict = judge(request, old_output, output, system=system, model=self.model)
         except Exception as failure:  # noqa: BLE001 (a judge failure is not the model's fault)
             reason = f"judge failed: {type(failure).__name__}: {str(failure)[:300]}"
             return [not_scored(self.name, reason, "judge_failed"), not_scored("new_vs_old", reason, "judge_failed")]

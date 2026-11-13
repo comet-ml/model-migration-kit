@@ -14,18 +14,20 @@ All these models are retiring soon. This is a test suite to help you make the mi
 | `gpt-5-mini` | openai | Dec 11, 2026 | requests fail | `gpt-6.1-terra` | [link](https://developers.openai.com/api/docs/deprecations) (2026-11-13) |
 | `gpt-5-nano` | openai | Dec 11, 2026 | requests fail | `gpt-6-luna` | [link](https://developers.openai.com/api/docs/deprecations) (2026-11-13) |
 | `o3` | openai | Dec 11, 2026 | requests fail | `gpt-6.1-sol` | [link](https://developers.openai.com/api/docs/deprecations) (2026-11-13) |
-| `o3-pro` | openai | Dec 11, 2026 | requests fail | `gpt-6.1-sol (reasoning.mode: pro, Responses API)` | [link](https://developers.openai.com/api/docs/deprecations) (2026-11-13) |
+| `o3-pro` | openai | Jan 6, 2027 | requests fail | `gpt-6.1-sol (reasoning.mode: pro, Responses API)` | [link](https://developers.openai.com/api/docs/deprecations) (2026-11-13) |
 | `gpt-4o-2024-08-06` | openai | Jan 14, 2027 | requests fail | `gpt-6-luna` | [link](https://developers.openai.com/api/docs/deprecations) (2026-11-13) |
 | `gpt-4o-2024-11-20` | openai | Jan 14, 2027 | requests fail | `gpt-6-luna` | [link](https://developers.openai.com/api/docs/deprecations) (2026-11-13) |
 | `gpt-4o-mini-2024-07-18` | openai | Jan 14, 2027 | requests fail | `gpt-6-luna` | [link](https://developers.openai.com/api/docs/deprecations) (2026-11-13) |
 | `gpt-4.1-2025-04-14` | openai | Jan 14, 2027 | requests fail | `gpt-6-luna` | [link](https://developers.openai.com/api/docs/deprecations) (2026-11-13) |
-| `gpt-4.1-mini-2025-04-14` | openai | Jan 14, 2027 | requests fail | `gpt-6-luna` | [link](https://developers.openai.com/api/docs/deprecations) (2026-11-13) |
 | `gpt-4o (2024-05-13)` | azure-openai | Jan 14, 2027 | Global Standard and Data Zone Standard deployments auto-upgrade to gpt-5.1; Provisioned deployments and ones set to NoAutoUpgrade stop working | `gpt-5.1` | [link](https://learn.microsoft.com/en-us/azure/foundry/openai/concepts/model-retirement-schedule) (2026-11-13) |
+| `gpt-4.1-mini-2025-04-14` | openai | Jan 20, 2027 | requests fail | `gpt-6-luna` | [link](https://developers.openai.com/api/docs/deprecations) (2026-11-13) |
 | `claude-sonnet-4-5 (Bedrock)` | bedrock | Apr 8, 2027 | requests fail | `not announced as of 2026-11-13` | [link](https://docs.aws.amazon.com/bedrock/latest/userguide/model-lifecycle-legacy.html) (2026-11-13) |
 | `gpt-4o (2024-08-06, 2024-11-20)` | azure-openai | Apr 14, 2027 | requests fail | `gpt-5.1` | [link](https://learn.microsoft.com/en-us/azure/foundry/openai/concepts/model-retirement-schedule) (2026-11-13) |
 <!-- retirements:end -->
 
 Dates come from each provider's deprecations page, checked on the date shown, and live in [`kit/retirements.yaml`](kit/retirements.yaml). Provider notes: [Gemini](providers/gemini.md), [OpenAI and Azure OpenAI](providers/openai.md), [Anthropic and Bedrock](providers/anthropic.md). Wrong or missing date? [Open an issue](https://github.com/comet-ml/model-migration-kit/issues/new/choose).
+
+Azure OpenAI runs its own schedule: `gpt-5` there runs until Feb 9, 2027 and `gpt-5-mini` until Jul 13, 2027 ([Azure schedule](https://learn.microsoft.com/en-us/azure/foundry/openai/concepts/model-retirement-schedule), checked 2026-11-13).
 
 ## What it does
 
@@ -39,7 +41,9 @@ It sends the same requests to the old and new model, logs both runs to [Opik](ht
 
 Then you turn what you find into tests that run on every model you try.
 
-It runs on your machine. Requests go to the model providers you pick and to Opik (Opik Cloud, or self-hosted). `--no-opik` keeps everything off Opik and writes only the report.
+It runs on your machine. Requests go to the model providers you pick and to Opik (Opik Cloud, or self-hosted). `kit.compare --no-opik` keeps everything off Opik and writes only the report; the other commands need Opik.
+
+**Cost:** a 30-request comparison with `--noise-floor`, judge included, cost us about $0.15 on Gemini, $0.35 on Claude and $0.60 on GPT-5. The judge is a model from a provider you have a key for (printed at the start; `--judge` to choose).
 
 ## Quickstart
 
@@ -51,7 +55,7 @@ cd model-migration-kit
 cp .env.example .env
 ```
 
-In `.env`, set one model key (`GEMINI_API_KEY`, `OPENAI_API_KEY` or `ANTHROPIC_API_KEY`) and an Opik key (`OPIK_API_KEY`, `OPIK_WORKSPACE`) from a [free Opik Cloud account](https://www.comet.com/signup?utm_source=github&utm_medium=referral&utm_campaign=model-migration-kit&utm_content=readme), or set `OPIK_URL_OVERRIDE` for a [self-hosted Opik](https://www.comet.com/docs/opik/self-host/overview?utm_source=github&utm_medium=referral&utm_campaign=model-migration-kit&utm_content=readme).
+In `.env`, set one model key (`GEMINI_API_KEY`, `OPENAI_API_KEY` or `ANTHROPIC_API_KEY`) and your Opik API key and workspace name (`OPIK_API_KEY`, `OPIK_WORKSPACE`, both shown in your Opik account; or leave them blank and the quickstart asks for the key) from a [free Opik Cloud account](https://www.comet.com/signup?utm_source=github&utm_medium=referral&utm_campaign=model-migration-kit&utm_content=readme), or set `OPIK_URL_OVERRIDE` for a [self-hosted Opik](https://www.comet.com/docs/opik/self-host/overview?utm_source=github&utm_medium=referral&utm_campaign=model-migration-kit&utm_content=readme).
 
 ```bash
 uv sync
@@ -70,6 +74,8 @@ Google only serves Gemini 2.5 to accounts that used it before. With a new Gemini
    uv run python -m kit.params --model anthropic/claude-sonnet-5-5 --params '{"temperature": 0.2}'
    ```
 
+   On Windows PowerShell, put the JSON in a file and pass `--params-file params.json` (every command that takes `--params` accepts it), and write each command on one line without the `\`.
+
 2. **Collect 30-200 real requests,** as JSONL or CSV with an `input` column (optional: `system`, `expects_json`, `required_fields`, or OpenAI-style `messages`). Or pull them from an app that already logs to Opik:
 
    ```bash
@@ -86,14 +92,14 @@ Google only serves Gemini 2.5 to accounts that used it before. With a new Gemini
      --params '{"temperature": 0.2, "max_tokens": 1024}' --noise-floor
    ```
 
-   Use `--dataset my-app-migration` instead of `--cases` to compare the requests `kit.capture` saved. `--noise-floor` also runs the old model against itself, so you can see how much answers change on their own. `--fail-on-changed N` exits 3 when more than N answers changed meaning. On Windows, put the parameters in a file and use `--params-file`.
+   Use `--dataset my-app-migration` instead of `--cases` to compare the requests `kit.capture` saved. `--noise-floor` also runs the old model against itself, so you can see how much answers change on their own. `--fail-on-changed N` exits 3 when more than N answers changed meaning or failed on the new model, and 2 when some cases couldn't be judged.
 
 ## Turn what you find into tests
 
 The report tells you how many answers changed. Reading a few of them tells you which changes matter. Once you've spotted a pattern, write it down as a test so it gets checked on every run from then on.
 
 1. Open the Opik link from the compare run and read the answers the report flagged.
-2. Look for a pattern. In our runs, two of the three new models dropped "once your return is received" from the refund-timing answer.
+2. Look for a pattern. Reading one run of answers, we saw the new GPT and Gemini models drop "once your return is received" from the refund-timing answer.
 3. Write it as one sentence in a checks file:
 
    ```yaml
@@ -110,7 +116,14 @@ The report tells you how many answers changed. Reading a few of them tells you w
      --models gemini/gemini-2.5-flash gemini/gemini-3.5-flash-lite --runs 3
    ```
 
-The checks are saved as an [Opik test suite](https://www.comet.com/docs/opik/evaluation/advanced/building-test-suites?utm_source=github&utm_medium=referral&utm_campaign=model-migration-kit&utm_content=readme): each check becomes an assertion on the cases it names, or on every case if it names none, and an LLM judge decides pass or fail. The suite stays in Opik, so the same checks run on the next model you try. `--runs 3` answers each case three times; a case passes only when all three do. It exits 3 when a check fails on the last model, for CI.
+Try it on the sample app first:
+
+```bash
+uv run python -m kit.suite --checks examples/support-bot/checks.yaml --cases examples/support-bot/cases.jsonl \
+  --system examples/support-bot/system_prompt.md --models gemini/gemini-2.5-flash gemini/gemini-3.5-flash-lite --runs 3
+```
+
+The checks are saved as an [Opik test suite](https://www.comet.com/docs/opik/evaluation/advanced/building-test-suites?utm_source=github&utm_medium=referral&utm_campaign=model-migration-kit&utm_content=readme): each check becomes an assertion on the cases it names, or on every case if it names none, and an LLM judge decides pass or fail. The suite stays in Opik, so the same checks run on the next model you try. `--runs 3` answers each case three times; a case passes only when all three do. A request that fails on a model fails every check for that case. It exits 3 when a check fails on the last model, for CI, and prints one Opik link that shows every model's answers side by side.
 
 [`examples/support-bot/checks.yaml`](examples/support-bot/checks.yaml) has three checks from our runs. Results on Nov 13, 2026 (passing runs out of 3 per case, judge `gemini/gemini-3.8-flash`):
 
@@ -149,15 +162,15 @@ The Gemini, OpenAI and Claude APIs have been run live. Azure, Bedrock and Vertex
 
 ## Results from our runs
 
-30 sample support requests, Nov 13, 2026, judge `gemini/gemini-3.8-flash`. Details on each provider page.
+30 sample support requests, Nov 13, 2026, judge `gemini/gemini-3.8-flash`, one answer per model per request. Request parameters: `temperature 0.2, max_tokens 1024` on Gemini, `max_tokens 4096` on GPT-5, `max_tokens 1024` on Claude. Details on each provider page.
 
-| Switch | Changed meaning (old vs itself) | Judge preferred new / same / old | Median latency | Cost, 30 requests |
+| Switch | Answers that changed meaning: old vs new (old vs itself) | Judge preferred new / same / old | Median latency | Model cost, 30 requests (judge not included) |
 |---|---|---|---|---|
 | `gemini-2.5-flash` → `gemini-3.5-flash-lite` | 5 of 30 (7) | 18 / 10 / 2 | 1.08s → 0.70s | $0.0157 → $0.0080 |
 | `gpt-5` → `gpt-6.1-sol` | 10 of 30 (10) | 11 / 11 / 8 | 12.13s → 2.43s | $0.2157 → $0.0385 |
 | `claude-sonnet-4-5` → `claude-sonnet-5-5` | 7 of 30 (4) | 19 / 8 / 3 | 2.62s → 2.00s | $0.0843 → $0.0828 |
 
-- `claude-sonnet-5-5` rejects `temperature: 0.2`. All 5 requests sent with it failed.
+- `claude-sonnet-5-5` rejects `temperature: 0.2`: in a 5-request trial with it set, all 5 failed.
 - `gemini-2.5-flash` followed a fake "SYSTEM NOTE" in a customer message and confirmed a refund and a $50 credit. Its replacement didn't.
 - On GPT-5, the old model changed as much against itself as against the new one.
 
@@ -169,7 +182,7 @@ Sample report: [`examples/sample-report/report.html`](examples/sample-report/rep
 - **A Gemini reroute doesn't error.** After Dec 1, `gemini-2.5-flash` calls on the Gemini API return 200s from a different model. Compare before the date: afterwards both sides are the same model.
 - **Token counts aren't comparable across models** (some count thinking tokens as output). Compare cost and characters.
 - **The refusal check is a pattern match.** Read it with the judge's verdict.
-- **Rate limits** are retried with backoff for up to `--deadline-minutes` (30). A request that still fails is recorded as an error.
+- **Rate limits and outages** are retried with backoff (up to a minute apart) until `--deadline-minutes` (30) runs out. A request that still fails is recorded as an error.
 
 Tested with opik 2.2.143 and litellm 1.105.7 (pinned), Python 3.12. `uv run pytest` runs the offline tests. To update a date or add a provider, see [CONTRIBUTING.md](CONTRIBUTING.md).
 
