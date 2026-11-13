@@ -20,7 +20,7 @@ from pathlib import Path
 
 RULE_NAME = "migration-kit: answer follows policy"
 SCORE_NAME = "follows_policy"
-DEFAULT_MODEL = "gpt-5-nano"  # the Opik SDK's default judge model; needs an OpenAI key in Opik
+DEFAULT_MODEL = "gpt-6-luna"  # gpt-5-nano retires Dec 11, 2026 (it is in retirements.yaml); needs an OpenAI provider in Opik
 
 PROMPT = """You check one answer that a customer-facing assistant gave in production.
 

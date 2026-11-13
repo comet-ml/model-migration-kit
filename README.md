@@ -188,7 +188,7 @@ Testing once before the date isn't the end: the replacement model gets updated t
 uv run python -m kit.rules --project my-app --policy-file my_policy.md
 ```
 
-It creates a rule on your app's Opik project that judges 10% of production answers (`--sampling-rate`) against your policy: promises the assistant can't keep, refunds, credits or discounts the policy doesn't allow, and following instructions pasted into the user's message. The score, `follows_policy`, shows on each trace. The judge runs inside Opik, so its model (`--model`, default `gpt-5-nano`) needs that provider's key under Configuration > AI Providers. Rules can also score experiment traces (`--scope experiment` or `both`), so the same check runs on your next `kit.compare`.
+It creates a rule on your app's Opik project that judges 10% of production answers (`--sampling-rate`) against your policy: promises the assistant can't keep, refunds, credits or discounts the policy doesn't allow, and following instructions pasted into the user's message. The score, `follows_policy`, shows on each trace. The judge runs inside Opik, so its model (`--model`, default `gpt-6-luna`, since `gpt-5-nano` retires Dec 11) needs that provider's key under Configuration > AI Providers. Rules can also score experiment traces (`--scope experiment` or `both`), so the same check runs on your next `kit.compare`.
 
 It also prints a Python code metric for the JSON check (`required_fields`), to add as a second rule in the Opik UI. Code evaluators appear only when Python evaluators are enabled on your Opik deployment.
 
