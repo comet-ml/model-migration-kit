@@ -35,7 +35,9 @@ Azure OpenAI runs on its own dates (rows above marked azure-openai). One `gpt-4o
 uv run python -m kit.params --model openai/gpt-6.1-sol --params '{"temperature": 0.2, "reasoning_effort": "none"}'
 ```
 
-**Compare before the date** (needs `OPENAI_API_KEY`; the judge defaults to a model from a provider you have a key for, or pass `--judge`. This path is tested with mocks only, not a live run):
+**What we saw (Nov 13, 2026, the 30 sample requests, judge `gemini/gemini-3.8-flash`):** `gpt-5` → `gpt-6.1-sol` changed meaning on 10 of 30 answers, and `gpt-5` against itself also changed on 10, so on this app the switch was inside run-to-run noise. The judge split (old 8, same 11, new 11). Median response time went from 12.13s to 2.43s and estimated model cost from $0.2157 to $0.0385. Neither model followed the fake system note. One change to look for: on "When do I get my money?", `gpt-6.1-sol` dropped the condition that the refund starts once the return is received. Full run: `uv run python -m kit.compare --cases examples/support-bot/cases.jsonl --system examples/support-bot/system_prompt.md --old openai/gpt-5 --new openai/gpt-6.1-sol --params '{"max_tokens": 4096}' --noise-floor`.
+
+**Compare before the date** (needs `OPENAI_API_KEY`; the judge defaults to a model from a provider you have a key for, or pass `--judge`.):
 
 ```bash
 uv run python -m kit.compare --cases your_requests.jsonl \

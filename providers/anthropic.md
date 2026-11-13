@@ -26,7 +26,9 @@ uv run python -m kit.params --model anthropic/claude-sonnet-5-5 \
   --params '{"temperature": 0.2, "thinking": {"type": "enabled", "budget_tokens": 2048}}'
 ```
 
-**Compare before the date** (needs `ANTHROPIC_API_KEY`; the judge defaults to a model from a provider you have a key for, or pass `--judge`. This path is tested with mocks only, not a live run). Send the parameters your app sends today; any that the new model rejects show up as "failed on new model":
+**What we saw (Nov 13, 2026, the 30 sample requests, judge `gemini/gemini-3.8-flash`):** with `temperature 0.2` in the request, all 5 requests sent to `claude-sonnet-5-5` failed ("does not support temperature=0.2. Only temperature=1 is supported"; LiteLLM refuses it before sending, and the API returns a 400). With `temperature` removed, all 30 ran: 7 of 30 answers changed meaning, against 4 for `claude-sonnet-4-5` against itself; the judge preferred the new model on 19 (old 3, same 8). Median response time went from 2.62s to 2.00s, and estimated model cost stayed about the same ($0.0843 → $0.0828) despite the extra tokens. Neither model followed the fake system note; Sonnet 5.5 named it and said it couldn't override policy.
+
+**Compare before the date** (needs `ANTHROPIC_API_KEY`; the judge defaults to a model from a provider you have a key for, or pass `--judge`.). Send the parameters your app sends today; any that the new model rejects show up as "failed on new model":
 
 ```bash
 uv run python -m kit.compare --cases your_requests.jsonl \

@@ -131,7 +131,7 @@ uv run python -m kit.compare --cases my_requests.jsonl --system my_system_prompt
   --old azure/my-gpt-4o --new azure/my-gpt-5-1 --judge azure/my-gpt-5-1-mini
 ```
 
-The judge defaults to a model from a provider you have a key for (`JUDGE_MODEL` or `--judge` to choose). Pick one that is neither the old nor the new model; the kit warns when it is. The Gemini path has run live; OpenAI, Anthropic, Azure, Bedrock and Vertex are tested with mocks only so far.
+The judge defaults to a model from a provider you have a key for (`JUDGE_MODEL` or `--judge` to choose). Pick one that is neither the old nor the new model; the kit warns when it is. The Gemini, OpenAI and Claude API paths have run live (Nov 13, 2026; results on each provider page). Azure, Bedrock and Vertex are tested with mocks only so far.
 
 ## What it checks
 
